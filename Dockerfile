@@ -6,6 +6,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY poddebug ./poddebug
 COPY api ./api
+COPY models ./models
 RUN pip install --no-cache-dir .
 USER 10001:10001
 EXPOSE 8000

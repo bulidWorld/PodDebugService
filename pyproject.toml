@@ -23,7 +23,7 @@ packages = ["poddebug"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "api/mcp.yaml" = "poddebug/mcp.yaml"
-"context/mtap-tool.schema.yaml" = "poddebug/mtap-tool.schema.yaml"
+"models/mtap-tool.schema.yaml" = "poddebug/mtap-tool.schema.yaml"
 
 [tool.ruff]
 line-length = 100
