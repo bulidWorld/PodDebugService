@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 从仓库根目录执行，按照步骤顺序创建资源。 -->
+<executionPlan>
+  <step name="创建命名空间">
+    <apply>
+      <file>0010-namespace.yaml</file>
+    </apply>
+  </step>
+  <step name="创建服务账号及 RBAC 权限">
+    <apply>
+      <file>0020-account-role.yaml</file>
+    </apply>
+  </step>
+  <step name="创建服务配置">
+    <apply>
+      <file>0030-configmap.yaml</file>
+    </apply>
+  </step>
+  <step name="创建调用方认证密钥">
+    <apply>
+      <file>0035-callers-secret.yaml</file>
+    </apply>
+  </step>
+  <step name="创建服务 Deployment 和 Service">
+    <apply>
+      <file>0040-kubernetes.yaml</file>
+    </apply>
+  </step>
+</executionPlan>

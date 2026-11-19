@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-debug-service
+  namespace: debug-pod
+data:
+  PODDEBUG_DEFAULT_NAMESPACE: "debug-pod"
+  PODDEBUG_ALLOWED_NAMESPACES: "debug-pod"
+  PODDEBUG_HTTP_HOST: "0.0.0.0"
+  PODDEBUG_HTTP_PORT: "8000"
+  PODDEBUG_PUBLIC_URL: "http://pod-debug-service.debug-pod.svc.cluster.local:8000"
+  # Empty means node-pinned requests are rejected. Add approved worker names
+  # here before allowing callers to select node_name.
+  PODDEBUG_ALLOWED_NODES: ""
+  PODDEBUG_IMAGE: "nicolaka/netshoot:v0.13"
+  PODDEBUG_MAX_EXEC_PER_POD: "5"
+  PODDEBUG_IDLE_TTL_SECONDS: "1200"
+  PODDEBUG_CLEANUP_INTERVAL_SECONDS: "60"
+  PODDEBUG_POD_START_TIMEOUT_SECONDS: "120"
+  PODDEBUG_MAX_PODS_GLOBAL: "30"
+  PODDEBUG_MAX_PODS_PER_NAMESPACE: "5"
+  PODDEBUG_MAX_OUTPUT_BYTES: "65536"
+  PODDEBUG_CPU_REQUEST: "50m"
+  PODDEBUG_CPU_LIMIT: "500m"
+  PODDEBUG_MEMORY_REQUEST: "64Mi"
+  PODDEBUG_MEMORY_LIMIT: "256Mi"
+  PODDEBUG_PROFILE: "network-v1"
+  PODDEBUG_OWNER_INSTANCE: "pod-debug-service"
+  LOG_LEVEL: "INFO"

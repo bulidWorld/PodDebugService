@@ -1,0 +1,47 @@
+# MCP server declaration for the LangGraph MCP client. This is not a K8s resource.
+name: kubernetes-network-diagnostics
+version: "0.1.0"
+transport: streamable-http
+tools:
+  - name: exec_debug_command
+    description: Run an HTTP, DNS, or TCP connectivity check inside a Kubernetes debug Pod.
+    _meta:
+      security:
+        riskLevel: low
+        approvalMode: none
+        defaultAction: allow
+    inputSchema:
+      type: object
+      required: [operation, target]
+      properties:
+        operation:
+          type: string
+          enum: [http, dns, tcp]
+        target:
+          type: string
+          description: URL for http, hostname for dns, or host:port for tcp.
+        namespace:
+          type: string
+          default: debug-pod
+        node_name:
+          type: [string, "null"]
+        timeout:
+          type: integer
+          minimum: 1
+          maximum: 60
+          default: 30
+    outputSchema:
+      type: object
+      required: [success, exitCode, stdout, stderr, timedOut, podName, namespace, nodeName, reused, durationMs]
+      properties:
+        success: {type: boolean}
+        exitCode: {type: integer}
+        stdout: {type: string}
+        stderr: {type: string}
+        timedOut: {type: boolean}
+        podName: {type: [string, "null"]}
+        namespace: {type: string}
+        nodeName: {type: [string, "null"]}
+        reused: {type: boolean}
+        durationMs: {type: integer}
+        httpStatusCode: {type: [integer, "null"]}
