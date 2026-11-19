@@ -14,7 +14,7 @@ kubectl apply -f deploy/0040-kubernetes.yaml
 
 `api/mcp.yaml` 是服务启动时读取的 MCP 工具目录源文件，定义 Streamable HTTP endpoint、`exec_debug_command` 的入参/结果 schema，以及发布到 MCP `list tools` 的 `_meta.security` 和 `_meta.approval`。它不是 Kubernetes 资源，不能用 `kubectl apply`。服务会校验 schema 与实现字段一致，不匹配时拒绝启动。调用方令牌仍从 Secret 注入的 `MCP_CALLERS_JSON` 读取。生产环境请将 `0035-callers-secret.yaml` 中的示例 token 替换为长随机值，避免将生产 token 提交到版本库。集群外访问时应配置 TLS Ingress/Gateway，并把 `PODDEBUG_PUBLIC_URL` 与 `api/mcp.yaml` 中的 URL 改成外部 HTTPS 地址。
 
-MCP endpoint 为 `http://pod-debug-service.pod-debug.svc.cluster.local:8000/mcp`。集群内客户端使用 `Authorization: Bearer <token>` 请求。
+MCP endpoint 为 `http://pod-debug-service.pod-debug.svc.cluster.local:8000/api/v1/mcp`。集群内客户端使用 `Authorization: Bearer <token>` 请求。
 
 `0040-kubernetes.yaml` 包含单副本 Deployment 和 ClusterIP Service。将其中的镜像占位符替换为已推送的服务镜像。
 

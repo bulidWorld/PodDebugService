@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import asyncio
 import logging
 import os
 import re
-import sys
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 from importlib.resources import files
@@ -16,12 +17,15 @@ from kubernetes import client, config
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
+from starlette.types import ASGIApp
 from pydantic import BaseModel, ConfigDict, Field, create_model
 import yaml
 
 from .auth import CallerTokenVerifier
+from .access_logging import AccessLogMiddleware
 from .config import Settings
 from .executor import ValidationError, build_command, execute
+from .logging_utils import configure_logging, log_event
 from .pool import DebugPodPool
 
 LOG = logging.getLogger("poddebug")
@@ -248,7 +252,7 @@ mcp = FastMCP(
     "kubernetes-network-diagnostics",
     host=settings.http_host,
     port=settings.http_port,
-    streamable_http_path="/mcp",
+    streamable_http_path="/api/v1/mcp",
     token_verifier=token_verifier,
     auth=AuthSettings(
         issuer_url=settings.public_url,
@@ -383,6 +387,7 @@ async def exec_debug_command(
         )
     record = None
     reused = False
+    request_started = time.monotonic()
     try:
         # 获取 Pod 后始终通过 finally 释放占用，覆盖执行成功和异常路径。
         record, reused = await pool.acquire(selected_namespace, node_name)
@@ -403,9 +408,33 @@ async def exec_debug_command(
         }
         if operation == "http":
             response["httpStatusCode"] = result.http_status_code
+        log_event(
+            LOG,
+            logging.INFO,
+            "http",
+            "诊断命令执行完成",
+            method="EXEC",
+            path=f"/{operation}",
+            duration_ms=int((time.monotonic() - request_started) * 1000),
+            status=200 if result.success else 502,
+            namespace=selected_namespace,
+            pod_name=record.name,
+            reused=reused,
+        )
         return ExecCommandOutput.model_validate(response)
     except Exception as exc:
-        LOG.exception("Diagnostic request failed")
+        log_event(
+            LOG,
+            logging.ERROR,
+            "exception",
+            "诊断请求执行失败",
+            exc_info=True,
+            method="EXEC",
+            path=f"/{operation}",
+            duration_ms=int((time.monotonic() - request_started) * 1000),
+            status=500,
+            namespace=selected_namespace,
+        )
         return ExecCommandOutput(
             success=False,
             exitCode=1,
@@ -484,13 +513,57 @@ def main() -> None:
     返回：
         无；服务运行至进程中断。
     """
-    logging.basicConfig(
-        stream=sys.stderr, level=os_level(), format="%(asctime)s %(levelname)s %(name)s %(message)s"
-    )
+    configure_logging(os_level())
     try:
-        mcp.run(transport="streamable-http")
+        asyncio.run(_run_logged_streamable_http())
     except KeyboardInterrupt:
         pass
+
+
+_streamable_http_app = mcp.streamable_http_app()
+
+
+def _logged_streamable_http_app() -> ASGIApp:
+    """返回安装访问日志包装器的 MCP HTTP ASGI 应用。
+
+    参数：
+        无。
+    返回：
+        按配置捕获可选正文的 Streamable HTTP ASGI 应用。
+    """
+    return AccessLogMiddleware(_streamable_http_app, settings.http_log_payload_enabled)
+
+
+async def _run_logged_streamable_http() -> None:
+    """启动带访问日志的 Streamable HTTP 服务。
+
+    参数：
+        无。
+    返回：
+        服务退出后返回。
+    """
+    import uvicorn
+
+    config = uvicorn.Config(
+        _logged_streamable_http_app(),
+        host=settings.http_host,
+        port=settings.http_port,
+        log_level=os_level_name(),
+        access_log=False,
+        log_config=None,
+    )
+    await uvicorn.Server(config).serve()
+
+
+def os_level_name() -> str:
+    """读取并规范化 Uvicorn 使用的日志级别名称。
+
+    参数：
+        无。
+    返回：
+        可供 Uvicorn 接受的小写日志级别名称。
+    """
+    return logging.getLevelName(os_level()).lower()
 
 
 def os_level() -> int:

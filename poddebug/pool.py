@@ -14,6 +14,7 @@ from typing import Any
 from kubernetes.client.rest import ApiException
 
 from .config import Settings
+from .logging_utils import log_event
 
 LOG = logging.getLogger(__name__)
 MANAGED_BY = "poddebug.openai.com/managed-by"
@@ -90,10 +91,10 @@ class DebugPodPool:
             except ApiException as exc:
                 if exc.status == 404:
                     continue
-                LOG.exception("Could not recover debug Pods in namespace %s", namespace)
+                log_event(LOG, logging.ERROR, "exception", "恢复诊断 Pod 失败", exc_info=True, namespace=namespace)
                 continue
             except Exception:
-                LOG.exception("Could not recover debug Pods in namespace %s", namespace)
+                log_event(LOG, logging.ERROR, "exception", "恢复诊断 Pod 失败", exc_info=True, namespace=namespace)
                 continue
             for pod in pods.items:
                 phase = pod.status.phase if pod.status else None
@@ -107,6 +108,8 @@ class DebugPodPool:
                 rec = PodRecord(namespace, pod.metadata.name, pod.spec.node_name,
                                 last_idle=last_idle, uncertain=True)
                 self.records[(namespace, rec.name)] = rec
+                log_event(LOG, logging.INFO, "business", "发现并保护待确认的诊断 Pod",
+                          namespace=namespace, pod_name=rec.name, node_name=rec.node_name)
         self._cleaner_task = asyncio.create_task(self._cleanup_loop(), name="pod-cleaner")
 
     async def close(self) -> None:
@@ -189,6 +192,8 @@ class DebugPodPool:
             async with self._lock:
                 rec.state = "IDLE"
                 rec.uncertain = False
+            log_event(LOG, logging.INFO, "business", "诊断 Pod 创建并就绪",
+                      namespace=namespace, pod_name=rec.name, node_name=rec.node_name)
             return rec, False
         except Exception:
             async with self._lock:
@@ -212,7 +217,8 @@ class DebugPodPool:
                 try:
                     await asyncio.to_thread(self._patch_idle, rec)
                 except Exception:
-                    LOG.exception("Could not update idle timestamp for %s/%s", rec.namespace, rec.name)
+                    log_event(LOG, logging.ERROR, "exception", "更新诊断 Pod 空闲时间失败",
+                              exc_info=True, namespace=rec.namespace, pod_name=rec.name)
 
     def _manifest(self, rec: PodRecord, node_name: str | None) -> dict[str, Any]:
         """构造受管诊断 Pod 的 Kubernetes Manifest。
@@ -337,13 +343,15 @@ class DebugPodPool:
                         await asyncio.to_thread(self.api.delete_namespaced_pod, rec.name, rec.namespace)
                     except ApiException as exc:
                         if exc.status != 404:
-                            LOG.warning("Could not delete idle Pod %s/%s: %s", rec.namespace, rec.name, exc)
+                            log_event(LOG, logging.WARNING, "exception", "删除空闲诊断 Pod 失败",
+                                      namespace=rec.namespace, pod_name=rec.name, error=str(exc))
                             async with self._lock:
                                 if rec.state == "DELETING":
                                     rec.state = "IDLE"
                             continue
                     except Exception:
-                        LOG.exception("Could not delete idle Pod %s/%s", rec.namespace, rec.name)
+                        log_event(LOG, logging.ERROR, "exception", "删除空闲诊断 Pod 异常",
+                                  exc_info=True, namespace=rec.namespace, pod_name=rec.name)
                         async with self._lock:
                             if rec.state == "DELETING":
                                 rec.state = "IDLE"
@@ -371,7 +379,8 @@ class DebugPodPool:
                 await asyncio.to_thread(self.api.patch_namespaced_pod, rec.name, rec.namespace,
                                         {"metadata": {"annotations": {STATE: "DELETING"}}})
             except Exception:
-                LOG.exception("Could not mark Pod %s/%s deleting", *key)
+                log_event(LOG, logging.ERROR, "exception", "标记诊断 Pod 删除状态失败",
+                          exc_info=True, namespace=key[0], pod_name=key[1])
                 rec.state = "IDLE"
                 return False
             return True

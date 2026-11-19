@@ -11,6 +11,8 @@ from typing import Any
 
 from kubernetes.stream import stream
 
+from .logging_utils import log_event
+
 LOG = logging.getLogger(__name__)
 
 
@@ -167,7 +169,19 @@ def _execute_blocking(core_api: Any, namespace: str, pod_name: str, command: lis
             http_status_code=http_status,
         )
     except Exception as exc:
-        LOG.exception("Kubernetes exec failed for pod %s/%s", namespace, pod_name)
+        log_event(
+            LOG,
+            logging.ERROR,
+            "exception",
+            "Kubernetes Exec 调用失败",
+            exc_info=True,
+            method="EXEC",
+            path="/pods/exec",
+            duration_ms=int((time.monotonic() - started) * 1000),
+            status=500,
+            namespace=namespace,
+            pod_name=pod_name,
+        )
         return ExecResult(False, 1, "", str(exc)[:output_limit], False,
                           int((time.monotonic() - started) * 1000))
     finally:
@@ -175,7 +189,7 @@ def _execute_blocking(core_api: Any, namespace: str, pod_name: str, command: lis
             try:
                 response.close()
             except Exception:
-                LOG.debug("Failed to close exec websocket", exc_info=True)
+                log_event(LOG, logging.DEBUG, "exception", "关闭 Exec WebSocket 失败", exc_info=True)
 
 
 async def execute(core_api: Any, namespace: str, pod_name: str, command: list[str],

@@ -11,7 +11,7 @@ pip install .
 PODDEBUG_ALLOWED_NAMESPACES=network-probe,monitoring pod-debug-service
 ```
 
-服务通过 MCP Streamable HTTP 传输，默认监听 `0.0.0.0:8000/mcp`。请求需携带 `Authorization: Bearer <token>`；令牌及调用方工具授权从 `MCP_CALLERS_JSON` 读取。Kubernetes 部署使用 Secret 注入此变量，集群内使用 ServiceAccount 凭据访问 API；本地调试时读取 kubeconfig。
+服务通过 MCP Streamable HTTP 传输，默认监听 `0.0.0.0:8000/api/v1/mcp`。请求需携带 `Authorization: Bearer <token>`；令牌及调用方工具授权从 `MCP_CALLERS_JSON` 读取。Kubernetes 部署使用 Secret 注入此变量，集群内使用 ServiceAccount 凭据访问 API；本地调试时读取 kubeconfig。
 
 ## 配置
 

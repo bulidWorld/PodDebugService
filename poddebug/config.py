@@ -44,6 +44,7 @@ class Settings:
     http_port: int = 8000
     public_url: str = "http://pod-debug-service.pod-debug.svc.cluster.local:8000"
     mcp_callers_json: str = "[]"
+    http_log_payload_enabled: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -79,4 +80,5 @@ class Settings:
             http_port=int(os.getenv("PODDEBUG_HTTP_PORT", "8000")),
             public_url=os.getenv("PODDEBUG_PUBLIC_URL", "http://pod-debug-service.pod-debug.svc.cluster.local:8000").rstrip("/"),
             mcp_callers_json=os.getenv("MCP_CALLERS_JSON", "[]"),
+            http_log_payload_enabled=os.getenv("HTTP_LOG_PAYLOAD_ENABLED", "false").lower() == "true",
         )
