@@ -9,6 +9,7 @@ import re
 import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
+from importlib.resources import files
 from typing import Any
 
 from kubernetes import client, config
@@ -70,12 +71,18 @@ def _load_tool_contract() -> tuple[dict[str, Any], dict[str, Any]]:
         RuntimeError: 文件无法读取或 YAML 无法解析时抛出。
         ValueError: 工具定义、安全元数据或输入输出结构不匹配时抛出。
     """
-    default_path = Path(__file__).resolve().parent.parent / "api" / "mcp.yaml"
-    path = Path(os.getenv("PODDEBUG_MCP_CONFIG", str(default_path)))
+    configured_path = os.getenv("PODDEBUG_MCP_CONFIG")
+    path = Path(configured_path) if configured_path else None
     try:
-        contract = yaml.safe_load(path.read_text(encoding="utf-8"))
+        contract_text = (
+            path.read_text(encoding="utf-8")
+            if path is not None
+            else files("poddebug").joinpath("mcp.yaml").read_text(encoding="utf-8")
+        )
+        contract = yaml.safe_load(contract_text)
     except (OSError, yaml.YAMLError) as exc:
-        raise RuntimeError(f"could not load MCP contract from {path}: {exc}") from exc
+        source = str(path) if path is not None else "poddebug/mcp.yaml"
+        raise RuntimeError(f"could not load MCP contract from {source}: {exc}") from exc
     if not isinstance(contract, dict) or not isinstance(contract.get("tools"), list):
         raise ValueError("MCP contract must define a tools array")
     tools = contract["tools"]

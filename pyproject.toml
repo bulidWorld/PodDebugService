@@ -20,6 +20,9 @@ pod-debug-service = "poddebug.server:main"
 [tool.hatch.build.targets.wheel]
 packages = ["poddebug"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"api/mcp.yaml" = "poddebug/mcp.yaml"
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

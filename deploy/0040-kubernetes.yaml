@@ -20,7 +20,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: server
-          image: REPLACE_WITH_REGISTRY/pod-debug-service:0.1.0
+          image: lingxi.image.io/KunPeng/pod-debug/pod-debug-service:v0.0.0
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
