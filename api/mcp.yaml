@@ -22,7 +22,7 @@ tools:
           description: URL for http, hostname for dns, or host:port for tcp.
         namespace:
           type: string
-          default: debug-pod
+          default: pod-debug
         node_name:
           type: [string, "null"]
         timeout:

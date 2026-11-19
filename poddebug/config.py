@@ -23,8 +23,8 @@ class Settings:
     """服务运行配置；字段默认值与环境变量默认值保持一致。"""
 
     image: str = "nicolaka/netshoot:v0.13"
-    default_namespace: str = "debug-pod"
-    allowed_namespaces: frozenset[str] = frozenset({"debug-pod"})
+    default_namespace: str = "pod-debug"
+    allowed_namespaces: frozenset[str] = frozenset({"pod-debug"})
     allowed_nodes: frozenset[str] = frozenset()
     max_exec_per_pod: int = 5
     idle_ttl_seconds: int = 1200
@@ -42,7 +42,7 @@ class Settings:
     kubeconfig: str | None = None
     http_host: str = "0.0.0.0"
     http_port: int = 8000
-    public_url: str = "http://pod-debug-service.debug-pod.svc.cluster.local:8000"
+    public_url: str = "http://pod-debug-service.pod-debug.svc.cluster.local:8000"
     mcp_callers_json: str = "[]"
 
     @classmethod
@@ -55,7 +55,7 @@ class Settings:
             使用当前环境变量填充的不可变服务配置。
         """
         # 先解析默认命名空间，使允许列表在未配置时默认只开放该命名空间。
-        default_ns = os.getenv("PODDEBUG_DEFAULT_NAMESPACE", "debug-pod")
+        default_ns = os.getenv("PODDEBUG_DEFAULT_NAMESPACE", "pod-debug")
         return cls(
             image=os.getenv("PODDEBUG_IMAGE", "nicolaka/netshoot:v0.13"),
             default_namespace=default_ns,
@@ -77,6 +77,6 @@ class Settings:
             kubeconfig=os.getenv("KUBECONFIG"),
             http_host=os.getenv("PODDEBUG_HTTP_HOST", "0.0.0.0"),
             http_port=int(os.getenv("PODDEBUG_HTTP_PORT", "8000")),
-            public_url=os.getenv("PODDEBUG_PUBLIC_URL", "http://pod-debug-service.debug-pod.svc.cluster.local:8000").rstrip("/"),
+            public_url=os.getenv("PODDEBUG_PUBLIC_URL", "http://pod-debug-service.pod-debug.svc.cluster.local:8000").rstrip("/"),
             mcp_callers_json=os.getenv("MCP_CALLERS_JSON", "[]"),
         )

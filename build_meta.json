@@ -1,4 +1,4 @@
 {
-    "name": "operator-agent-service",
-    "path": "KunPeng/operator-agent"
+    "name": "pod-debug-service",
+    "path": "KunPeng/pod-debug"
 }

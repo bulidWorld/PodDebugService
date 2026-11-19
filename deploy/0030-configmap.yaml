@@ -2,13 +2,13 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pod-debug-service
-  namespace: debug-pod
+  namespace: pod-debug
 data:
-  PODDEBUG_DEFAULT_NAMESPACE: "debug-pod"
-  PODDEBUG_ALLOWED_NAMESPACES: "debug-pod"
+  PODDEBUG_DEFAULT_NAMESPACE: "pod-debug"
+  PODDEBUG_ALLOWED_NAMESPACES: "pod-debug"
   PODDEBUG_HTTP_HOST: "0.0.0.0"
   PODDEBUG_HTTP_PORT: "8000"
-  PODDEBUG_PUBLIC_URL: "http://pod-debug-service.debug-pod.svc.cluster.local:8000"
+  PODDEBUG_PUBLIC_URL: "http://pod-debug-service.pod-debug.svc.cluster.local:8000"
   # Empty means node-pinned requests are rejected. Add approved worker names
   # here before allowing callers to select node_name.
   PODDEBUG_ALLOWED_NODES: ""
