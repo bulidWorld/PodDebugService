@@ -6,10 +6,11 @@ tools:
   - name: exec_debug_command
     description: Run an HTTP, DNS, or TCP connectivity check inside a Kubernetes debug Pod.
     _meta:
-      security:
-        riskLevel: low
-        approvalMode: none
-        defaultAction: allow
+      com.zhiwenxia/approval:
+        schemaVersion: 1
+        security:
+          riskLevel: low
+          approvalMode: none
     inputSchema:
       type: object
       required: [operation, target]

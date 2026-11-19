@@ -20,6 +20,7 @@ from mcp.server.fastmcp import FastMCP
 from starlette.types import ASGIApp
 from pydantic import BaseModel, ConfigDict, Field, create_model
 import yaml
+from jsonschema import Draft202012Validator
 
 from .auth import CallerTokenVerifier
 from .access_logging import AccessLogMiddleware
@@ -93,6 +94,20 @@ def _load_tool_contract() -> tuple[dict[str, Any], dict[str, Any]]:
     if len(tools) != 1 or not isinstance(tools[0], dict):
         raise ValueError("MCP contract must define exactly one tool")
     tool = tools[0]
+    schema_path = Path(__file__).resolve().parent / "mtap-tool.schema.yaml"
+    try:
+        mtap_schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(mtap_schema)
+        errors = sorted(
+            Draft202012Validator(mtap_schema).iter_errors(tool),
+            key=lambda error: list(map(str, error.absolute_path)),
+        )
+    except (OSError, yaml.YAMLError) as exc:
+        raise RuntimeError(f"could not load MTAP schema from {schema_path}: {exc}") from exc
+    if errors:
+        error = errors[0]
+        location = ".".join(map(str, error.absolute_path)) or "tool"
+        raise ValueError(f"MCP tool does not match MTAP schema at {location}: {error.message}")
     input_schema = tool.get("inputSchema")
     input_properties = input_schema.get("properties", {}) if isinstance(input_schema, dict) else {}
     if (
@@ -126,75 +141,6 @@ def _load_tool_contract() -> tuple[dict[str, Any], dict[str, Any]]:
         raise ValueError("MCP contract operation enum does not match implementation")
     if set(input_schema.get("required", [])) != {"operation", "target"}:
         raise ValueError("MCP contract required inputs do not match implementation")
-    metadata = tool.get("_meta")
-    if not isinstance(metadata, dict) or not isinstance(metadata.get("security"), dict):
-        raise ValueError("MCP contract tool must define _meta.security")
-    security = metadata["security"]
-    # 启动时拒绝不完整或实现不支持的审批描述，避免运行时暴露错误契约。
-    if security.get("riskLevel") not in {"low", "medium", "high", "critical"}:
-        raise ValueError("MCP tool security.riskLevel is invalid")
-    if security.get("approvalMode") not in {"none", "required", "conditional"}:
-        raise ValueError("MCP tool security.approvalMode is invalid")
-    if security.get("defaultAction") not in {"allow", "deny", "require_approval"}:
-        raise ValueError("MCP tool security.defaultAction is invalid")
-    if security["approvalMode"] == "none" and "approval" in metadata:
-        raise ValueError("MCP tool with approvalMode=none must not define approval inputs")
-    if security["approvalMode"] != "none":
-        approval = metadata.get("approval")
-        if (
-            not isinstance(security.get("approvalRole"), str)
-            or not security["approvalRole"].strip()
-        ):
-            raise ValueError("MCP tool requiring approval must define security.approvalRole")
-        if (
-            not isinstance(approval, dict)
-            or approval.get("schema_version") != 1
-            or approval.get("inputPolicy") not in {"fixed", "model_assisted"}
-            or not isinstance(approval.get("inputs"), list)
-        ):
-            raise ValueError("MCP tool requiring approval must define approval metadata and inputs")
-        valid_types = {"confirm", "single_select", "multi_select", "text"}
-        allowed_types = approval.get("allowedInputTypes", [])
-        if approval["inputPolicy"] == "model_assisted" and (
-            not isinstance(allowed_types, list)
-            or not all(isinstance(item, str) for item in allowed_types)
-            or not set(allowed_types) <= valid_types
-        ):
-            raise ValueError("approval.allowedInputTypes contains an unsupported input type")
-        seen_keys: set[str] = set()
-        for approval_input in approval["inputs"]:
-            if not isinstance(approval_input, dict):
-                raise ValueError("approval.inputs entries must be objects")
-            key, input_type = approval_input.get("key"), approval_input.get("type")
-            if (
-                not isinstance(key, str)
-                or not key
-                or key in seen_keys
-                or not isinstance(approval_input.get("label"), str)
-                or not isinstance(approval_input.get("required"), bool)
-                or input_type not in valid_types
-            ):
-                raise ValueError("approval.inputs entry has invalid key, label, required, or type")
-            seen_keys.add(key)
-            if input_type in {"single_select", "multi_select"}:
-                options = approval_input.get("options")
-                if (
-                    not isinstance(options, list)
-                    or not options
-                    or any(
-                        not isinstance(option, dict)
-                        or not isinstance(option.get("value"), str)
-                        or not isinstance(option.get("label"), str)
-                        for option in options
-                    )
-                ):
-                    raise ValueError(f"approval input {key!r} requires labeled options")
-            if input_type == "text" and "max_length" in approval_input:
-                if (
-                    not isinstance(approval_input["max_length"], int)
-                    or approval_input["max_length"] < 1
-                ):
-                    raise ValueError(f"approval text input {key!r} has invalid max_length")
     output_schema = tool.get("outputSchema")
     if not isinstance(output_schema, dict) or output_schema.get("type") != "object":
         raise ValueError("MCP contract tool must define an object outputSchema")

@@ -10,6 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
   "kubernetes>=31.0.0,<35.0.0",
   "mcp>=1.9.0,<2.0.0",
+  "jsonschema>=4.23.0,<5.0.0",
   "pydantic>=2.12.0,<3.0.0",
   "PyYAML>=6.0,<7.0",
 ]
@@ -22,6 +23,7 @@ packages = ["poddebug"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "api/mcp.yaml" = "poddebug/mcp.yaml"
+"context/mtap-tool.schema.yaml" = "poddebug/mtap-tool.schema.yaml"
 
 [tool.ruff]
 line-length = 100
